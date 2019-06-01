@@ -13,9 +13,12 @@ def data_loader(dataset: str, batch_size=1, buffer_size=1, local_test=0):
     """
     ------------------------------------------------------------------------------------------
     Dataloader:
-        Saves a .tfrecords file with each subject's data in \\data\\raw\\HCP_1200\\TFRecords.
-        
-        Set optional param '--local_test=1' to test with dummy data on local machine.
+        - Saves a .tfrecords file with each subject's data in \\data\\raw\\HCP_1200\\TFRecords.
+        - Metrics are loaded according to codes in \\data\\raw\\HCP_1200\\behavioral_data_pruned.csv:
+            - Marked with '0': not included as features
+            - Marked with '1': included as features
+            - Marked with '2': included as label
+        - Set optional param '--local_test=1' to test with dummy data on local machine.
     
         Returns:
         1) Dataset of type 'tf.data.TFRecordDataset' containing MRI image file paths and
@@ -27,7 +30,6 @@ def data_loader(dataset: str, batch_size=1, buffer_size=1, local_test=0):
     """
 
     # Parameters
-    # TODO: Implement pruning functionality.
     reader_params = {'batch_size': batch_size,
                      'buffer_size': buffer_size}
     dataset_path = _util.getRelRawPath(dataset)
@@ -92,33 +94,42 @@ def get_mri_dict(dataset_path):
 
 
 def get_behav_dict(dataset_path):
-    # Get list of metrics
-    # TODO: Provide functionality for pruning.  Currently grabbing all headers from
-    # 'behavioral_data.csv', including CogFluidComp.
-    behav_dict = {}
-    with open(dataset_path + '\\behavioral_data.csv') as f:
-        headers = next(csv.reader(f))
+    # Get list of pruned metrics
+    metrics = []
+    for line in open(dataset_path + '\\behavioral_data_pruned.csv').read().splitlines():
+        if line.split(',')[2] == '1':
+            metrics.append(line.split(',')[0])
 
     # Create dictionary of metrics for each subject
+    # TODO: Handle missing subject values.
+    behav_dict = {}
     with open(dataset_path + '\\behavioral_data.csv') as f:
         for row in csv.DictReader(f):
             single_subj_behav_dict = {}
-            for h in headers:
-                single_subj_behav_dict[h] = row[h]
+            for m in metrics:
+                single_subj_behav_dict[m] = row[m]
             behav_dict[row['Subject']] = single_subj_behav_dict
+    
     return behav_dict
 
 
 def get_intel_dict(dataset_path):
+    # Get intelligence metric
+    # TODO: Possibility of multiple intelligence metrics?
+    for line in open(dataset_path + '\\behavioral_data_pruned.csv').read().splitlines():
+        if line.split(',')[2] == '2':
+            metric = line.split(',')[0]
+    
     # Create dictionary of intelligence scores for each subject
     with open(dataset_path + '\\behavioral_data.csv') as f:
         intel_dict = {}
         for row in csv.DictReader(f):
-            score = row['CogFluidComp_Unadj']
-            # TODO: Properly handle subjects with missing intelligence scores
+            score = row[metric]
+            # TODO: Properly handle missing subject values
             if score == "":
                 score = 100
             intel_dict[row['Subject']] = float(score)
+
     return intel_dict
 
 
