@@ -5,127 +5,190 @@ cd %WS_PATH%\src\scripts data_loader.py --dataset=HCP_1200
 import utils.utility as _util, utils.cmd_line as _cmd
 import numpy as np, tensorflow as tf, SimpleITK as sitk
 import csv, os, pprint
-from dltk.io.augmentation import *
-from dltk.io.preprocessing import *
+#from dltk.io.augmentation import *
+#from dltk.io.preprocessing import *
 
 
-def data_loader(dataset: str, batch_size=1, buffer_size=1, iterations=10):
+def data_loader(dataset: str, batch_size=1, buffer_size=1, local_test=0):
     """
-    ------------------------------
-    TODO: Docstring
-    ------------------------------
+    ------------------------------------------------------------------------------------------
+    Dataloader:
+        Saves a .tfrecords file with each subject's data in \\data\\raw\\HCP_1200\\TFRecords.
+        
+        Set optional param '--local_test=1' to test with dummy data on local machine.
+    
+        Returns:
+        1) Dataset of type 'tf.data.TFRecordDataset' containing MRI image file paths and
+            behavioral metrics as dictionaries with 6-digit subject_ids as keys.
+        2) Dictionary containing intel scores with 6-digit subject_ids as keys.
+
+    TODO: Expand docstring
+    ------------------------------------------------------------------------------------------
     """
 
     # Parameters
     # TODO: Implement pruning functionality.
     reader_params = {'batch_size': batch_size,
-                     'buffer_size': buffer_size,
-                     'iterations': iterations}
-
-    # Get image file paths
-    # TODO: Correct file paths.  Currently 'all_files' retreives 2 hardcoded images,
-    # (used for initial TFR file creation testing), and 'mri_dict' retreives dictionary
-    # of images from wrong S3 folder (to demonstrate method of extracting file paths).
+                     'buffer_size': buffer_size}
     dataset_path = _util.getRelRawPath(dataset)
-    all_files = [[dataset_path + '\\100206_SBRef_dc.nii.gz', 100206],
-                 [dataset_path + '\\100610_SBRef_dc.nii.gz', 100307]]
-    mri_dict = get_mri_dict(dataset)
+    tfr_path = dataset_path + '\\TFRecords'
 
-    # TODO: Also retreive metrics from 'behavioral_summary.csv' for each subject.
-    behav_dict = {}
-
-    # Get intelligence scores
-    label_dict = get_labels(dataset_path)
+    # Get image file paths, behav metrics, & intel scores as dicts with subjects as keys
+    mri_dict = get_mri_dict(dataset_path)
+    behav_dict = get_behav_dict(dataset_path)
+    intel_dict = get_intel_dict(dataset_path)
 
     # Create TFRecords file
-    tfr_path = dataset_path + '\\train.tfrecords'
-    create_TFR_file(tfr_path, all_files)
+    create_TFR_file(tfr_path, mri_dict, behav_dict, intel_dict, local_test)
 
     # Load tf.data.Dataset from TFRecords file
     dataset = load_TFR_dataset(tfr_path, reader_params)
 
+    return dataset, intel_dict
 
 
-def get_mri_dict(dataset):
-
+def get_mri_dict(dataset_path):
+    # Main MRI dictionary of all subjects
+    mri_dict = {}
+    
     # Iterate through each subject ID
-    mydict = {}
-    dataset_path = _util.getRelRawPath(dataset)
     for subj_ID in next(os.walk(dataset_path))[1]:
+        subj_dict = {}
         subj_path = dataset_path + '\\' + subj_ID
 
-        # Iterate through each MRI resolution
-        res_dict = {}
-        for res in ['3T', '7T']:
-            res_path = subj_path + '\\unprocessed\\' + res
-            if (os.path.exists(res_path)):
+        # Add scans in 'Diffusion' folder to subject dictionary
+        diff_path = subj_path + '\\T1w\\Diffusion'
+        if os.path.exists(diff_path):
+            for file_name in os.listdir(diff_path):
+                if file_name.endswith('.gz'):
+                    img_name = 'Diffusion_' + file_name[:-7]
+                    img_path = diff_path + '\\' + file_name
+                    subj_dict[img_name] = img_path
 
-                # Iterate through MRI categories
-                categ_dict = {}
-                for categ in next(os.walk(res_path))[1]:
-                    categ_path = res_path + '\\' + categ
+        # Add scans in 'Diffusion_7T' folder to subject dictionary
+        diff_7T_path = subj_path + '\\T1w\\Diffusion_7T'
+        if os.path.exists(diff_7T_path):
+            for file_name in os.listdir(diff_7T_path):
+                if file_name.endswith('.gz'):
+                    img_name = 'Diffusion_7T_' + file_name[:-7]
+                    img_path = diff_7T_path + '\\' + file_name
+                    subj_dict[img_name] = img_path
 
-                    # Get scan names & paths within each category
-                    scan_dict = {}
-                    for scan in os.listdir(categ_path):
-                        if scan.endswith('.gz'):
-                            scan_name = scan[10:-7]
-                            scan_path = categ_path + '\\' + scan
+        # Add scans in 'Results' folder to subject dictionary
+        results_path = subj_path + '\\T1w\\Results'
+        if os.path.exists(results_path):
+            for folder_name in next(os.walk(results_path))[1]:
+                for file_name in os.listdir(results_path + '\\' + folder_name):
+                    if file_name.endswith('.gz'):
+                        img_name = folder_name + file_name[:-7]
+                        img_path = results_path + '\\' + folder_name + '\\' + file_name
+                        subj_dict[img_name] = img_path
 
-                            # Append to nested dictionary
-                            scan_dict[scan_name] = scan_path
-                    categ_dict[categ] = scan_dict
-                res_dict[res] = categ_dict
-        mydict[subj_ID] = res_dict
-    return mydict
+        # Add individual subject dictionary to main MRI dictionary
+        mri_dict[subj_ID] = subj_dict
+
+    # Return main MRI dictionary of all subjects
+    return mri_dict
 
 
-def get_labels(dataset_path):
-    counter = 0
-    label_dict = {}
+def get_behav_dict(dataset_path):
+    # Get list of metrics
+    # TODO: Provide functionality for pruning.  Currently grabbing all headers from
+    # 'behavioral_data.csv', including CogFluidComp.
+    behav_dict = {}
     with open(dataset_path + '\\behavioral_data.csv') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            label_dict[row['Subject']] = row['CogFluidComp_Unadj']
-    return label_dict
+        headers = next(csv.reader(f))
+
+    # Create dictionary of metrics for each subject
+    with open(dataset_path + '\\behavioral_data.csv') as f:
+        for row in csv.DictReader(f):
+            single_subj_behav_dict = {}
+            for h in headers:
+                single_subj_behav_dict[h] = row[h]
+            behav_dict[row['Subject']] = single_subj_behav_dict
+    return behav_dict
 
 
-def create_TFR_file(tfr_path, all_files):
-    # Open the TFRecords file
-    writer = tf.python_io.TFRecordWriter(tfr_path)
+def get_intel_dict(dataset_path):
+    # Create dictionary of intelligence scores for each subject
+    with open(dataset_path + '\\behavioral_data.csv') as f:
+        intel_dict = {}
+        for row in csv.DictReader(f):
+            score = row['CogFluidComp_Unadj']
+            # TODO: Properly handle subjects with missing intelligence scores
+            if score == "":
+                score = 100
+            intel_dict[row['Subject']] = float(score)
+    return intel_dict
 
-    # Write data into a TFRecords file
-    for meta_data in all_files:
 
-        # Read the .nii image with SimpleITK and get its numpy array
-        sitk_img = sitk.ReadImage(meta_data[0])
-        img_arr = sitk.GetArrayFromImage(sitk_img)
+def create_TFR_file(tfr_path, mri_dict, behav_dict, intel_dict, local_test):
+    # Iterate through each subject ID
+    if local_test: subj_counter = 0
+    for subj_id in mri_dict:
+        if local_test: subj_counter += 1
+        if local_test and subj_counter > 2: break
+    
+        # Open the TFRecords file (x_feature)
+        writer = tf.python_io.TFRecordWriter(tfr_path + '\\' + subj_id + '_x.tfrecords')
+        x_feature_dict = {}
 
-        # Take an individual image from the time-series
-        # TODO: handle full time series of MRI images for a subject test?
-        #img_arr = img_arr[0, :, :, :]
+        # Add MRI images to x_feature dictionary
+        if local_test: mri_counter = 0
+        for mri in mri_dict[subj_id]:
+            if local_test: mri_counter += 1
+            if local_test and mri_counter > 3: break
 
-        # Normalize the image to zero mean / unit std dev
-        img_arr = whitening(img_arr)
+            # Reaad the .nii.gz image with SimpleITK and get its numpy array
+            sitk_img = sitk.ReadImage(mri_dict[subj_id][mri])
+            img_arr = sitk.GetArrayFromImage(sitk_img)
 
-        # Create a tensor with a dummy dimension for channels
-        img_arr = img_arr[..., np.newaxis]
+            # If image is a 4D time-series, take only an individual image
+            # TODO: How to handle 4D time-series?  Currently just taking first image.
+            if len(img_arr.shape) == 4:
+                img_arr = img_arr[0, :, :, :]
 
-        # Assign label
-        label = np.int32(meta_data[1])
+            # Create a tensor with a dummy dimension for channels
+            img_arr = img_arr[..., np.newaxis]
 
-        # Create a feature
-        feature = {'train/label': _int64_feature(label),
-                   'train/image': _float_feature(img_arr.ravel())}
+            # Add to dictionary
+            x_feature_dict[mri] = _float_arr_feature(img_arr.ravel())
+
+        # Add behavioral metrics to x_feature dictionary
+        for behav in behav_dict[subj_id]:
+            x_feature_dict[behav] = _str_feature(behav_dict[subj_id][behav])
+
+        # Create the feature
+        features = tf.train.Features(feature=x_feature_dict)
 
         # Create an example protocol buffer
-        example = tf.train.Example(features=tf.train.Features(feature=feature))
+        example = tf.train.Example(features=features)
 
         # Serialize to string and write on the file
         writer.write(example.SerializeToString())
 
-    # Close the TFRecords file
-    writer.close()
+        # Close the TFRecords file
+        writer.close()
+
+
+        # TODO: Add y_features into TFRecords file.
+        '''
+        # Open the TFRecords file (y_feature)
+        writer = tf.python_io.TFRecordWriter(tfr_path + '\\' + subj_id + '_y.tfrecords')
+
+        # Assign label
+        y_feature = _float_feature(intel_dict[subj_id])
+        features = tf.train.Features(feature=y_feature)
+
+        # Create an example protocol buffer
+        example = tf.train.Example(features=features)
+
+        # Serialize to string and write on the file
+        writer.write(example.SerializeToString())
+
+        # Close the TFRecords file
+        writer.close()
+        '''
 
 
 def decode(serialized_example):
@@ -138,11 +201,18 @@ def decode(serialized_example):
     # Return features as tf.float32 values
     return features['train/image'], features['train/label']
 
+
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-def _float_feature(value):
+def _float_arr_feature(value):
     return tf.train.Feature(float_list=tf.train.FloatList(value=value))
+
+def _float_feature(value):
+    return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
+
+def _str_feature(value):
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value.encode('utf-8')]))
 
 
 def load_TFR_dataset(tfr_path, params):
@@ -150,8 +220,7 @@ def load_TFR_dataset(tfr_path, params):
     dataset = tf.data.TFRecordDataset(tfr_path).map(decode)
     dataset = dataset.batch(params['batch_size'])
     dataset = dataset.prefetch(params['buffer_size'])
-    return dataset
-
+    return dataset    
 
 def main():
     global _logger
