@@ -189,7 +189,7 @@ def get_dataset(dataset_path: str, batch_size: int, buffer_size: int, partial=Fa
 
 
 def main():
-    args = _cmd.parseArgsForClassOrScript(generate)
+    args = _cmd.parse_args_for_callable(generate)
     varsArgs = vars(args)
     verbosity = varsArgs.pop('verbosity', _util.DEFAULT_VERBOSITY)
     _logger.info("Passed arguments: '{}'".format(varsArgs))

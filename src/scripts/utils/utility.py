@@ -129,3 +129,20 @@ def ensure_path_free(path: str):
 def rm(path: str):
     if os.path.exists(path):
         shutil.rmtree(path)
+
+
+def str_to_bool(s):
+    """Convert string to bool (in argparse context)."""
+    if s.lower() not in str_to_bool.dict:
+        raise ValueError("Need bool; got {}".format(type(s)))
+    return str_to_bool.dict[s.lower()]
+str_to_bool.dict = {
+    "yes": True,
+    "y": True,
+    "true": True,
+    "+": True,
+    "no": False,
+    "n": False,
+    "false": False,
+    "-": False
+}
