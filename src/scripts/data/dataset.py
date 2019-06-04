@@ -46,7 +46,7 @@ def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", 
     behavioral = _get_behavioral_data(_util.get_rel_raw_path(), partial)
     dataset_path = _get_dataset_path(dataset, overwrite)
 
-    for i, subject in tqdm(enumerate(sorted(SUBJECTS))):
+    for i, subject in tqdm(enumerate(sorted(SUBJECTS)), total=len(SUBJECTS)):
         assert isinstance(subject, str) and len(subject)
         _logger.info("Processing subject {} ({}/{})".format(subject, i + 1, len(SUBJECTS)))
 
