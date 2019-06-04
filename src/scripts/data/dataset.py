@@ -19,9 +19,9 @@ from data.hcp_config import FEATURES, LABEL, SUBJECTS
 _logger = _util.get_logger(__file__)
 
 
-# def generate(raw: str, dataset: str, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", overwrite=False, partial=False):
-def generate(raw: str, dataset: str, scan_dir="T1w/Diffusion/data.nii.gz", overwrite=False, partial=False):
+def generate(raw: str, dataset: str, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", overwrite=False, partial=False):
     """
+    Generates a TFRecords dataset for HCP in the given raw directory.
 
     :param raw: Directory containing data in the HCP1200 format. Must contain behavioral_data.csv.
     :param dataset: Directory in which to put the resultant dataset.
