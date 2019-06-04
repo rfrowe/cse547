@@ -19,26 +19,29 @@ from data.hcp_config import FEATURES, LABEL, SUBJECTS
 _logger = _util.get_logger(__file__)
 
 
-def generate(raw: str, dataset: str, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", overwrite=False, partial=False):
+def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", overwrite=False, partial=False):
     """
     Generates a TFRecords dataset for HCP in the given raw directory.
 
     :param raw: Directory containing data in the HCP1200 format. Must contain behavioral_data.csv.
-    :param dataset: Directory in which to put the resultant dataset.
+    :param dataset: Directory in which to put the resultant dataset, or None for same as raw.
     :param scan_dir: Location of MRI scan inside each participant to use.
     :param overwrite: If dataset already exists, overwrite it. Otherwise, will fail.
     :param partial: If any subject's data are not found, continue anyway. Otherwise, will fail.
     """
     assert isinstance(raw, str) and len(raw)
-    assert isinstance(dataset, str) and len(dataset)
+    assert dataset is None or isinstance(dataset, str) and len(dataset)
     assert isinstance(scan_dir, str) and len(scan_dir)
     assert isinstance(overwrite, bool)
     assert isinstance(partial, bool)
 
+    if dataset is None:
+        dataset = raw
+
     raw_path = _util.get_rel_raw_path(raw)
     _util.ensure_dir(raw_path)
 
-    behavioral = _get_behavioral_data(raw_path, partial)
+    behavioral = _get_behavioral_data(_util.get_rel_raw_path(), partial)
     dataset_path = _get_dataset_path(dataset, overwrite)
 
     for subject in SUBJECTS:
