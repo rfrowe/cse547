@@ -185,11 +185,6 @@ def main():
 
     generate(**varsArgs)
 
-    tf.enable_eager_execution()
-    for data in get_dataset(_util.get_rel_datasets_path("small"), 1, 1, True):
-        print(repr(data))
-    pass
-
 
 if __name__ == '__main__':
     main()
