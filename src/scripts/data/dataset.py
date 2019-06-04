@@ -21,7 +21,7 @@ from data.hcp_config import FEATURES, LABEL, SUBJECTS
 _logger = _util.get_logger(__file__)
 
 
-def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", overwrite=False, partial=False):
+def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", overwrite=False, partial=False, validate_scans=True):
     """
     Generates a TFRecords dataset for HCP in the given raw directory.
 
@@ -30,12 +30,14 @@ def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", 
     :param scan_dir: Location of MRI scan inside each participant to use.
     :param overwrite: If dataset already exists, overwrite it. Otherwise, will fail.
     :param partial: If any subject's data are not found, continue anyway. Otherwise, will fail.
+    :param validate_scans: Verify before beginning that all necessary scans exist. This may take a while.
     """
     assert isinstance(raw, str) and len(raw)
     assert dataset is None or isinstance(dataset, str) and len(dataset)
     assert isinstance(scan_dir, str) and len(scan_dir)
     assert isinstance(overwrite, bool)
     assert isinstance(partial, bool)
+    assert isinstance(validate_scans, bool)
 
     if dataset is None:
         dataset = raw
@@ -47,11 +49,12 @@ def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", 
     dataset_path = _get_dataset_path(dataset, overwrite)
 
     # Ensure scans exist for all subjects before beginning
-    for subject in SUBJECTS:
-        subject_path = os.path.join(raw_path, subject)
-        if not os.path.exists(subject_path) and partial:
-            continue
-        _util.ensure_dir(subject_path)
+    if validate_scans:
+        for subject in tqdm(SUBJECTS):
+            subject_path = os.path.join(raw_path, subject)
+            if not os.path.exists(subject_path) and partial:
+                continue
+            _util.ensure_dir(subject_path)
 
     for i, subject in tqdm(enumerate(sorted(SUBJECTS)), total=len(SUBJECTS)):
         assert isinstance(subject, str) and len(subject)
@@ -60,6 +63,8 @@ def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", 
         subject_path = os.path.join(raw_path, subject)
         if not os.path.exists(subject_path) and partial:
             continue
+        if not validate_scans:
+            _util.ensure_dir(subject_path)
 
         record_path = _get_record_path(dataset_path, subject, overwrite)
 
