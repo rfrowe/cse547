@@ -37,7 +37,7 @@ def train(dataset: str, epochs=100, hidden_units=256, batch_size=64, buffer_size
 
     loss = tf.reduce_mean(tf.squared_difference(input, output))
     step = tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
-    init = tf.initialize_all_variables()
+    init = tf.global_variables_initializer()
 
     train_dataset = _get_dataset(dataset, batch_size, buffer_size, partial).repeat()
     next_train = train_dataset.make_one_shot_iterator().get_next()

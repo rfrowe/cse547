@@ -51,10 +51,10 @@ def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", 
     # Ensure scans exist for all subjects before beginning
     if validate_scans:
         for subject in tqdm(SUBJECTS):
-            subject_path = os.path.join(raw_path, subject)
-            if not os.path.exists(subject_path) and partial:
+            scan_path = os.path.join(raw_path, subject, scan_dir)
+            if not os.path.exists(scan_path) and partial:
                 continue
-            _util.ensure_dir(subject_path)
+            _util.ensure_dir(scan_path)
 
     for i, subject in tqdm(enumerate(sorted(SUBJECTS)), total=len(SUBJECTS)):
         assert isinstance(subject, str) and len(subject)
