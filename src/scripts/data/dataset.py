@@ -15,7 +15,7 @@ import utils.utility as _util
 import utils.cmd_line as _cmd
 
 
-from data.hcp_config import FEATURES, LABEL, SUBJECTS
+from data.hcp_config import FEATURES, LABEL, SUBJECTS, SHAPE
 
 
 _logger = _util.get_logger(__file__)
@@ -157,7 +157,7 @@ def _decode(serialized_example):
     features = tf.parse_single_example(
         serialized_example,
         features={
-            "scan": tf.FixedLenFeature([145, 174, 145, 1], tf.float32),
+            "scan": tf.FixedLenFeature(SHAPE, tf.float32),
             "behavioral": tf.FixedLenFeature([len(FEATURES)], tf.float32),
             "label": tf.FixedLenFeature([], tf.float32)
         }
@@ -166,10 +166,12 @@ def _decode(serialized_example):
     return (features["scan"], features["behavioral"]), features["label"]
 
 
-def get_dataset(dataset_path: str, batch_size: int, buffer_size: int, partial=False):
+def get_dataset(dataset_path: str, batch_size: int, buffer_size: int, shuffle=False, partial=False):
     assert isinstance(dataset_path, str) and len(dataset_path)
     assert isinstance(batch_size, int) and batch_size > 0
     assert isinstance(buffer_size, int) and buffer_size > 0
+    assert isinstance(shuffle, bool)
+    assert isinstance(partial, bool)
     _util.ensure_dir(dataset_path)
 
     records = sorted(glob.glob(os.path.join(dataset_path, "*.tfrecords")))
@@ -182,6 +184,7 @@ def get_dataset(dataset_path: str, batch_size: int, buffer_size: int, partial=Fa
     assert len(missing) == 0 or partial, "Missing records: {}".format(missing)
     assert len(extra) == 0, "Extra records: {}".format(extra)
 
+    # TODO (rfrowe): add shuffling
     return (tf.data.TFRecordDataset(records)
             .map(_decode)
             .batch(batch_size)
