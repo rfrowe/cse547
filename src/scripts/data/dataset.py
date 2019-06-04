@@ -46,6 +46,13 @@ def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", 
     behavioral = _get_behavioral_data(_util.get_rel_raw_path(), partial)
     dataset_path = _get_dataset_path(dataset, overwrite)
 
+    # Ensure scans exist for all subjects before beginning
+    for subject in SUBJECTS:
+        subject_path = os.path.join(raw_path, subject)
+        if not os.path.exists(subject_path) and partial:
+            continue
+        _util.ensure_dir(subject_path)
+
     for i, subject in tqdm(enumerate(sorted(SUBJECTS)), total=len(SUBJECTS)):
         assert isinstance(subject, str) and len(subject)
         _logger.info("Processing subject {} ({}/{})".format(subject, i + 1, len(SUBJECTS)))
@@ -53,7 +60,6 @@ def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", 
         subject_path = os.path.join(raw_path, subject)
         if not os.path.exists(subject_path) and partial:
             continue
-        _util.ensure_dir(subject_path)
 
         record_path = _get_record_path(dataset_path, subject, overwrite)
 
@@ -67,7 +73,6 @@ def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", 
         assert subject in behavioral, "Subject not found in behavioral data: {}".format(subject)
         vector, label = behavioral[subject]
 
-        print(arr.shape)
         features = {
             "scan": tf.train.Feature(float_list=tf.train.FloatList(value=arr.ravel())),
             "behavioral": tf.train.Feature(float_list=tf.train.FloatList(value=vector)),
