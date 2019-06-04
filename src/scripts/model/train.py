@@ -44,7 +44,7 @@ def train(dataset: str, epochs=100, hidden_units=256, batch_size=64, buffer_size
 
     eval_dataset = _get_dataset(dataset, batch_size, buffer_size, partial)
 
-    with tf.Session() as sess:
+    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         sess.run(init)
 
         print("Epoch 0: eval {}".format(_get_eval_loss(sess, input, eval_dataset, loss)))
