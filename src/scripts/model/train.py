@@ -39,12 +39,12 @@ def train(dataset: str, epochs=100, hidden_units=256, batch_size=64, buffer_size
     step = tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
     init = tf.initialize_all_variables()
 
-    train_dataset = _get_dataset(dataset, batch_size, buffer_size, partial)
+    train_dataset = _get_dataset(dataset, batch_size, buffer_size, partial).repeat()
     next_train = train_dataset.make_one_shot_iterator().get_next()
 
     eval_dataset = _get_dataset(dataset, batch_size, buffer_size, partial)
 
-    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
+    with tf.Session() as sess:
         sess.run(init)
 
         print("Epoch 0: eval {}".format(_get_eval_loss(sess, input, eval_dataset, loss)))
