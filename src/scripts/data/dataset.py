@@ -127,7 +127,7 @@ def _get_behavioral_data(raw_path: str, partial: bool):
             for feature in FEATURES:
                 features.append(_get_feature(row[feature]))
 
-            data[subject] = (features, float(row[LABEL]) if row[LABEL] else 0.)
+            data[subject] = (features, float(row[LABEL]))
 
     behavioral = {}
     for subject in SUBJECTS:
