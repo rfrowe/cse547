@@ -126,18 +126,17 @@ def _get_behavioral_data(raw_path: str, partial: bool):
         for row in reader:
             subject = row["Subject"]
 
-            features = []
-            for feature in FEATURES:
-                features.append(_get_feature(row[feature]))
+            if subject in subjects:
+                features = []
+                for feature in FEATURES:
+                    features.append(_get_feature(row[feature]))
 
-            data[subject] = (features, float(row[LABEL]))
+                data[subject] = (features, float(row[LABEL]))
 
-    behavioral = {}
     for subject in SUBJECTS:
         assert subject in subjects or partial, \
             "Missing subject from behavioral data: {}".format(subject)
-        behavioral[subject] = data[subject]
-    return behavioral
+    return data
 
 
 def _decode(serialized_example):
