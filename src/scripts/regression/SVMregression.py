@@ -78,8 +78,9 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, lr=1
     #define constants 
     epsilon = tf.constant([eps])
     
-    #define loss function: max(0,|w*x+b|-y-eps)
-    loss = tf.reduce_mean(tf.maximum(0., tf.subtract(tf.abs(tf.subtract(model_out, label)), epsilon)))
+    #define loss function: |w|**2/2 + C* max(0,|w*x+b|-y-eps); here, C*max computes the mean 
+    slack= tf.reduce_mean(tf.maximum(0., tf.subtract(tf.abs(tf.subtract(model_out, label)), epsilon)))
+    loss = tf.add(tf.divide(tf.square(w),2),slack)
     
     #define optimizer: gradient descent 
     my_opt = tf.train.GradientDescentOptimizer(learningrate=LR)
