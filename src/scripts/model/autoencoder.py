@@ -1,50 +1,61 @@
 """
 Defines 2-d autoencoder in TensorFlow.
 """
-import operator
-from functools import reduce
+import pywt
 
 from tensorflow.contrib.keras import layers as _layers
+from tensorflow.contrib.keras import regularizers as _regs
 import tensorflow as tf
+import numpy as np
+
+
+def _dwt_kernel_init(kind="bior2.2"):
+    wavelet = pywt.Wavelet(kind)
+    dec_hi = np.array(wavelet.dec_hi[::-1])
+    dec_lo = np.array(wavelet.dec_lo[::-1])
+
+    filters = np.array([
+        dec_lo[None, :] * dec_lo[:, None],
+        dec_lo[None, :] * dec_hi[:, None],
+        dec_hi[None, :] * dec_lo[:, None],
+        dec_hi[None, :] * dec_hi[:, None]
+    ])
+
+    return filters
+
+
+def _idwt_kernel_init(kind="bior2.2"):
+    wavelet = pywt.Wavelet(kind)
+    dec_hi = np.array(wavelet.dec_hi)
+    dec_lo = np.array(wavelet.dec_lo)
+
+    filters = np.array([
+        dec_lo[None, :] * dec_lo[:, None],
+        dec_lo[None, :] * dec_hi[:, None],
+        dec_hi[None, :] * dec_lo[:, None],
+        dec_hi[None, :] * dec_hi[:, None]
+    ])
+
+    return filters
+
+
+def _l2(reg):
+    return _regs.l2(reg)
 
 
 class Encoder(_layers.Layer):
-    def __init__(self, hidden_dims):
+    def __init__(self, l2_reg):
         super().__init__()
-        self._hidden_dims = hidden_dims
 
-        self._conv1 = _layers.Conv2D(32, 5, strides=2, padding='same', activation=tf.nn.leaky_relu, name="conv1")
-        self._pool1 = _layers.MaxPool2D(strides=2, padding='same', name="pool1")
-        self._conv2 = _layers.Conv2D(64, 5, strides=2, padding='same', activation=tf.nn.leaky_relu, name="conv2")
-        self._pool2 = _layers.MaxPool2D(strides=2, padding='same', name="pool2")
-        self._dropout1 = _layers.Dropout(0.1)
-        self._dense1 = _layers.Dense(hidden_dims, activation=tf.nn.leaky_relu)
+        self._conv1 = _layers.Conv3D(32, 5, strides=2, padding="same", activation=tf.nn.leaky_relu, name="conv1", kernel_regularizer=_l2(l2_reg))
+        self._conv2 = _layers.Conv3D(256, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv2", kernel_regularizer=_l2(l2_reg))
+        self._conv3 = _layers.Conv3D(1024, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv3", kernel_regularizer=_l2(l2_reg))
+        self._conv4 = _layers.Conv3D(4096, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv4", kernel_regularizer=_l2(l2_reg))
 
     def call(self, tensor, **kwargs):
-        output = self._conv1(tensor)
-        output = self._pool1(output)
-        output = self._conv2(output)
-        output = self._pool2(output)
-        output = self._dropout1(output)
+        # Add channel dimension since these are monochrome.
+        tensor = tf.expand_dims(tensor, -1)
 
-        flat = reduce(operator.mul, output.shape[1:])
-        output = tf.reshape(output, (-1, flat))
-        output = self._dense1(output)
-        return output
-
-
-class Decoder(_layers.Layer):
-    def __init__(self, hidden_dims):
-        super().__init__()
-        self._hidden_dims = hidden_dims
-
-        self._conv1 = _layers.Conv2DTranspose(64, 5, strides=2, padding='same', name="conv1")
-        self._conv2 = _layers.Conv2DTranspose(32, 5, strides=2, padding='same', name="conv2")
-        self._conv3 = _layers.Conv2DTranspose(16, 5, strides=2, padding='same', name="conv3")
-        self._conv4 = _layers.Conv2DTranspose(1, 5, strides=2, padding='same', activation=tf.nn.tanh, name="conv4")
-
-    def call(self, tensor, **kwargs):
-        tensor = tf.reshape(tensor, (-1, 16, 16, 1))
         output = self._conv1(tensor)
         output = self._conv2(output)
         output = self._conv3(output)
@@ -52,11 +63,30 @@ class Decoder(_layers.Layer):
         return output
 
 
-class Autoencoder(_layers.Layer):
-    def __init__(self, hidden_dims):
+class Decoder(_layers.Layer):
+    def __init__(self, l2_reg):
         super().__init__()
-        self._encoder = Encoder(hidden_dims)
-        self._decoder = Decoder(hidden_dims)
+
+        # self._conv1 = _layers.Conv3DTranspose(4096, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv1", kernel_regularizer=_l2(l2_reg))
+        self._conv2 = _layers.Conv3DTranspose(1024, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv2", kernel_regularizer=_l2(l2_reg))
+        self._conv3 = _layers.Conv3DTranspose(256, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv3", kernel_regularizer=_l2(l2_reg))
+        self._conv4 = _layers.Conv3DTranspose(32, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv4", kernel_regularizer=_l2(l2_reg))
+        self._conv5 = _layers.Conv3DTranspose(1, 5, strides=2, padding="same", activation=tf.nn.leaky_relu, name="conv5", kernel_regularizer=_l2(l2_reg))
+
+    def call(self, tensor, **kwargs):
+        # output = self._conv1(tensor)
+        output = self._conv2(tensor)
+        output = self._conv3(output)
+        output = self._conv4(output)
+        output = self._conv5(output)
+        return tf.squeeze(output, 4)
+
+
+class Autoencoder(_layers.Layer):
+    def __init__(self, l2_reg):
+        super().__init__()
+        self._encoder = Encoder(l2_reg)
+        self._decoder = Decoder(l2_reg)
 
     def call(self, tensor, **kwargs):
         latent = self._encoder(tensor)

@@ -4,12 +4,15 @@ Tool for generating preprocessed TFRecord dataset.
 """
 
 import csv
+import functools
 import glob
+import json
 import os
 
 import tensorflow as tf
 import SimpleITK as sitk
 from tqdm import tqdm
+from typing import List
 
 import utils.utility as _util
 import utils.cmd_line as _cmd
@@ -21,7 +24,7 @@ from data.hcp_config import FEATURES, LABEL, SUBJECTS, SHAPE
 _logger = _util.get_logger(__file__)
 
 
-def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", overwrite=False, partial=False, validate_scans=True):
+def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore_brain.nii.gz", overwrite=False, partial=False, validate_scans=True):
     """
     Generates a TFRecords dataset for HCP in the given raw directory.
 
@@ -54,7 +57,7 @@ def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", 
             scan_path = os.path.join(raw_path, subject, scan_dir)
             if not os.path.exists(scan_path) and partial:
                 continue
-            _util.ensure_dir(scan_path)
+            _util.ensure_file(scan_path)
 
     for i, subject in tqdm(enumerate(sorted(SUBJECTS)), total=len(SUBJECTS)):
         assert isinstance(subject, str) and len(subject)
@@ -78,15 +81,20 @@ def generate(raw: str, dataset=None, scan_dir="T1w/T1w_acpc_dc_restore.nii.gz", 
         assert subject in behavioral, "Subject not found in behavioral data: {}".format(subject)
         vector, label = behavioral[subject]
 
-        features = {
-            "scan": tf.train.Feature(float_list=tf.train.FloatList(value=arr.ravel())),
-            "behavioral": tf.train.Feature(float_list=tf.train.FloatList(value=vector)),
-            "label": tf.train.Feature(float_list=tf.train.FloatList(value=[label]))
-        }
+        write_record(record_path, arr.ravel(), vector, label)
+    save_shape(dataset_path, SHAPE)
 
-        record = tf.train.Example(features=tf.train.Features(feature=features))
-        with tf.python_io.TFRecordWriter(record_path) as writer:
-            writer.write(record.SerializeToString())
+
+def write_record(record_path: str, scan, behavioral, label):
+    features = {
+        "scan": tf.train.Feature(float_list=tf.train.FloatList(value=scan.ravel())),
+        "behavioral": tf.train.Feature(float_list=tf.train.FloatList(value=behavioral)),
+        "label": tf.train.Feature(float_list=tf.train.FloatList(value=[label]))
+    }
+
+    record = tf.train.Example(features=tf.train.Features(feature=features))
+    with tf.python_io.TFRecordWriter(record_path) as writer:
+        writer.write(record.SerializeToString())
 
 
 def _get_dataset_path(dataset: str, overwrite: bool):
@@ -152,12 +160,12 @@ def _get_behavioral_data(raw_path: str, partial: bool):
     return data
 
 
-def _decode(serialized_example):
+def _decode(shape, serialized_example):
     # Decode examples stored in TFRecord (correct image dimensions must be specified)
     features = tf.parse_single_example(
         serialized_example,
         features={
-            "scan": tf.FixedLenFeature(SHAPE, tf.float32),
+            "scan": tf.FixedLenFeature(shape, tf.float32),
             "behavioral": tf.FixedLenFeature([len(FEATURES)], tf.float32),
             "label": tf.FixedLenFeature([], tf.float32)
         }
@@ -166,11 +174,8 @@ def _decode(serialized_example):
     return (features["scan"], features["behavioral"]), features["label"]
 
 
-def get_dataset(dataset_path: str, batch_size: int, buffer_size: int, shuffle=False, partial=False):
+def get_records(dataset_path: str, partial: bool):
     assert isinstance(dataset_path, str) and len(dataset_path)
-    assert isinstance(batch_size, int) and batch_size > 0
-    assert isinstance(buffer_size, int) and buffer_size > 0
-    assert isinstance(shuffle, bool)
     assert isinstance(partial, bool)
     _util.ensure_dir(dataset_path)
 
@@ -183,10 +188,36 @@ def get_dataset(dataset_path: str, batch_size: int, buffer_size: int, shuffle=Fa
 
     assert len(missing) == 0 or partial, "Missing records: {}".format(missing)
     assert len(extra) == 0, "Extra records: {}".format(extra)
+    return records
+
+
+def load_shape(dataset_path: str) -> List[int]:
+    with open(os.path.join(dataset_path, "shape.json"), "r") as f:
+        shape = json.load(f)
+    assert isinstance(shape, list) and all(isinstance(s, int) and s > 0 for s in shape) and len(shape) == 3, \
+        "Invalid shape: {}".format(shape)
+    return shape
+
+
+def save_shape(dataset_path: str, shape: List[int]):
+    assert isinstance(shape, list) and all(isinstance(s, int) and s > 0 for s in shape) and len(shape) == 3, \
+        "Invalid shape: {}".format(shape)
+    with open(os.path.join(dataset_path, "shape.json"), "w") as f:
+        json.dump(shape, f)
+
+
+def get_dataset(dataset_path: str, batch_size: int, buffer_size: int, shuffle=False, partial=False):
+    assert isinstance(batch_size, int) and batch_size > 0
+    assert isinstance(buffer_size, int) and buffer_size > 0
+    assert isinstance(shuffle, bool)
+
+    records = get_records(dataset_path, partial)
+
+    shape = load_shape(dataset_path)
 
     # TODO (rfrowe): add shuffling
     return (tf.data.TFRecordDataset(records)
-            .map(_decode)
+            .map(functools.partial(_decode, shape))
             .batch(batch_size)
             .prefetch(buffer_size))
 
