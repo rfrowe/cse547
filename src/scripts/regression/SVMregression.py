@@ -80,26 +80,28 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, lr=1
     
     #define loss function: max(0,|w*x+b|-y-eps)
     loss = tf.reduce_mean(tf.maximum(0., tf.subtract(tf.abs(tf.subtract(model_out, label)), epsilon)))
+    
     #define optimizer: gradient descent 
     my_opt = tf.train.GradientDescentOptimizer(learningrate=LR)
     train_step = my_opt.minimize(loss)
     init = tf.initialize_all_variables()
     
-    sess.run(init)
-    
-    train_loss = []
-    test_loss = []
-    
-    #run the function
-    for i in range(200):
-        rand_index = np.random.choice(len(x_vals_train), size=batch_size)
-        X = np.transpose([x_vals_train[rand_index]])
-        Y = np.transpose([y_vals_train[rand_index]])
-        sess.run(train_step, feed_dict={feat: X, label: Y})
-        temp_train_loss = sess.run(loss, feed_dict={x_data: np.transpose([x_vals_train]), y_target: np.transpose([y_vals_train])})
-        train_loss.append(temp_train_loss)
-        temp_test_loss = sess.run(loss, feed_dict={x_data:np.transpose([x_vals_test]), y_target: np.transpose([y_vals_test])})
-        test_loss.append(temp_test_loss)
+    with tf.Session() as sess
+        sess.run(init)
+        
+        train_loss = []
+        test_loss = []
+        
+        #run the function
+        for i in range(200):
+            rand_index = np.random.choice(len(x_vals_train), size=batch_size)
+            X = np.transpose([x_vals_train[rand_index]])
+            Y = np.transpose([y_vals_train[rand_index]])
+            sess.run(train_step, feed_dict={feat: X, label: Y})
+            temp_train_loss = sess.run(loss, feed_dict={x_data: np.transpose([x_vals_train]), y_target: np.transpose([y_vals_train])})
+            train_loss.append(temp_train_loss)
+            temp_test_loss = sess.run(loss, feed_dict={x_data:np.transpose([x_vals_test]), y_target: np.transpose([y_vals_test])})
+            test_loss.append(temp_test_loss)
         
         
 def apply_encoder(subjid, tfrecordloc, encoder):
@@ -113,17 +115,8 @@ def apply_encoder(subjid, tfrecordloc, encoder):
 
 
 # Start main section of code
-        
-sess = tf.Session()
-# get subject ID's and behavioral features from hcp_config
-recordsdir=relpath #TODO : replace with relative path for tfrecords
-alltfrecords=np.array(os.listdir(os.join(recordsdir, '*.tfrecord'))) #get list of all TFrecords
-testid=np.random.choice(len(alltfrecords),round(len(alltfrecords)/15)) # choose subjects for 15% test set
-testrecords=alltfrecords[testid] # file loactions for test cases
-trainrecords=np.delete(alltfrecords,testid) # file locations for train cases
-batch_size=20; #2% batch size for svm mbgd
 
-for record in trainrecords:
+#TODO figure out which of these lines we actaully need if using Ryan's dataset functions? 
     # Read TFRecord file
     reader = tf.TFRecordReader()
     record_s=glob.glob('*.tfrecords')
@@ -149,7 +142,14 @@ for record in trainrecords:
     # apply encoder to 'scan', append results to 'behavioral', remove NIH flanker, card sort, picseq, list sort, 
         # pattern from behavioral data if there
     for name, tensor in read_data.items()
-        print('{}: {}'.format(name, tensor.eval()))
+        #TODO open most recent saved autoencoder
+        
+        #TODO remove the decoder portion
+        
+        #TODO apply to each record
+        
+        
+        #TODO concatenate resulting 4096 feature vector with behavioral features
             
 
 
