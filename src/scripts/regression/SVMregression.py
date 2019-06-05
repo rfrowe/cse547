@@ -19,7 +19,29 @@ import tensorflow as tf
 # main and/or supporting functions?
 
 
+# from hcp_config, get subjids and behaviroal data attributes
+
+# split subjids into train and tes
+
+# for id in subjids:
+#import tfrecord and apply encoder
+
+#output of encoder is 4096x1
+
+#import behavioral data for specific sample from csv, append output of encoder
+
+#update svm
+
+
 sess = tf.Session()
+testid=np.random.choice(len(subjID),round(len(subjID)/10)) # subjects in 10% test set
+
+def apply_encoder(subjid, tfrecordloc, encoder, testtrainID):
+    """
+    applies autoencoder to subject scans and assignes feature vectors to test and train sets
+    """
+    featvect=encoder('tfrecordloc\subjid') # how to apply encoder?
+    return featvect
 
 def varbatch_svm(x_vals_train, x_vals_test, y_vals_train, y_vals_test, batch_size, LR, eps):
     """ varbatch_svm creates an svm regression model with variable batch size. It takes as inputs the features 
@@ -57,4 +79,6 @@ for i in range(200):
     temp_test_loss = sess.run(loss, feed_dict={x_data:np.transpose([x_vals_test]), y_target: np.transpose([y_vals_test])})
     test_loss.append(temp_test_loss)
 
-
+for i in range(1,40):
+    testtrainid=np.random.choice(10,1)
+    print(testtrainid, testtrainid>0)
