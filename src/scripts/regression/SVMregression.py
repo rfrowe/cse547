@@ -87,8 +87,17 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, lr=1
     train_step = my_opt.minimize(loss)
     init = tf.initialize_all_variables()
     
+    #reopen saver
+    saver = tf.train.Saver() 
+    
     with tf.Session() as sess
         sess.run(init)
+        
+        #restore best version of model
+        bestmodel=get_model() #TODO write function to get best model file path
+        saver.restore(sess, bestmodel)
+        
+        # apply model to each 
         
         train_loss = []
         test_loss = []
@@ -105,13 +114,16 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, lr=1
             test_loss.append(temp_test_loss)
         
         
-def apply_encoder(subjid, tfrecordloc, encoder):
+def apply_encoder(dataset, encoder):
     """
     applies autoencoder to subject scans and assignes feature vectors to test and train sets
     """
     featvect=encoder('tfrecordloc\subjid') # how to apply encoder?
     return featvect
 
+def get_model(): 
+    #TODO 
+    return modelfilepath
 
 
 
