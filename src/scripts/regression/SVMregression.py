@@ -10,7 +10,7 @@ Created on Tue Jun  4 22:57:22 2019
 
 import numpy as np
 import tensorflow as tf
-
+import os
 
 
 #TODOS
@@ -85,11 +85,13 @@ def varbatch_svm(x_vals_train, x_vals_test, y_vals_train, y_vals_test, batch_siz
         
 sess = tf.Session()
 # get subject ID's and behavioral features from hcp_config
-subjid=hcp_config.py
-testid=np.random.choice(len(subjID),round(len(subjID)/15)) # choose subjects for 15% test set
+alltfrecords=np.array(os.listdir(recordsdir*.tfrecord)) # convert this into correct os format
+testid=np.random.choice(len(alltfrecords),round(len(alltfrecords)/15)) # choose subjects for 15% test set
+testrecords=alltfrecords[testid] # file loactions for test cases
+trainrecords=np.delete(alltfrecords,testid) # file locations for train cases
 batch_size=20; #2% batch size for svm mbgd
 
-for id in subjID:
+for record in trainrecords:
     # Read TFRecord file
     reader = tf.TFRecordReader()
     filename_queue = tf.train.string_input_producer([str(id)+'.tfrecord'])
@@ -109,8 +111,9 @@ for id in subjID:
     # so we need to start it before we read
         tf.train.start_queue_runners(sess)
         
-    # Print features
-    for name, tensor in read_data.items():
+    # apply encoder to 'scan', append results to 'behavioral', remove NIH flanker, card sort, picseq, list sort, 
+        # pattern from behavioral data if there
+    for name, tensor in read_data.items()
         print('{}: {}'.format(name, tensor.eval()))
             
 
