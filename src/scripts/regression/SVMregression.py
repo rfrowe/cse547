@@ -19,7 +19,7 @@ from tqdm import tqdm
 import utils.cmd_line as _cmd
 import utils.utility as _util
 
-from data.dataset import get_dataset, load_shape
+from data.dataset import get_records, load_shape, _decode
 from model.train import _get_dataset, _only_cropped_scan
 
 #TODOS
@@ -62,11 +62,14 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, lr=1
     # get dataset path
     dataset_path = _util.get_rel_datasets_path(dataset)
     _util.ensure_dir(dataset_path)
-    shape = load_shape(dataset_path) 
+    shape = load_shape(dataset_path)     
     
-    #subset data into train and test sets
-    train_set = _get_dataset(dataset, batch_size, buffer_size, partial)
-    eval_set = _get_dataset(dataset, test_size, buffer_size, partial)
+    #subset data into train and test sets, randomly shuffle?
+        # for now, hardcoade number of files for train/test split:
+    testset=np.random.choice(1096,110)
+    test_set = get_dataset_regress(dataset, test_size, buffer_size, partial, testset)
+    trainset=np.random.permute(np.delete(np.arange(1:1096), test_set))
+    train_set = get_dataset_regress(dataset, batch_size, buffer_size, partial, trainset)
 
     #define svm inputs vars
     feat= tf.placeholder(dtype=tf.float32,shape=[None, 1])
@@ -79,8 +82,8 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, lr=1
     epsilon = tf.constant([eps])
     
     #define loss function: |w|**2/2 + C* max(0,|w*x+b|-y-eps); here, C*max computes the mean 
-    slack= tf.reduce_mean(tf.maximum(0., tf.subtract(tf.abs(tf.subtract(model_out, label)), epsilon)))
-    loss = tf.add(tf.divide(tf.square(w),2),slack)
+    slackterm= tf.reduce_mean(tf.maximum(0., tf.subtract(tf.abs(tf.subtract(model_out, label)), epsilon)))
+    loss = tf.add(tf.divide(tf.square(w),2),slackterm)
     
     #define optimizer: gradient descent 
     my_opt = tf.train.GradientDescentOptimizer(learningrate=LR)
@@ -92,7 +95,7 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, lr=1
     
     with tf.Session() as sess
         sess.run(init)
-        
+                
         #restore best version of model
         bestmodel=get_model() #TODO write function to get best model file path
         saver.restore(sess, bestmodel)
@@ -118,43 +121,33 @@ def apply_encoder(dataset, encoder):
     """
     applies autoencoder to subject scans and assignes feature vectors to test and train sets
     """
+    # TODO extract encoder only
+    # TODO apply encoder only
     featvect=encoder('tfrecordloc\subjid') # how to apply encoder?
     return featvect
 
 def get_model(): 
-    #TODO 
+    #TODO  find most recent model file; should be best model file
     return modelfilepath
+
+def get_dataset_regress(dataset_path: str, batch_size: int, buffer_size: int, shuffle=False, partial=False, indices):
+    assert isinstance(batch_size, int) and batch_size > 0
+    assert isinstance(buffer_size, int) and buffer_size > 0
+    assert isinstance(indices, bool) and indices>0
+
+    records = np.array(get_records(dataset_path, partial))
+    records=list(records[indices])
+    shape = load_shape(dataset_path)
+
+    return (tf.data.TFRecordDataset(records)
+            .map(functools.partial(_decode, shape))
+            .batch(batch_size)
+            .prefetch(buffer_size))
 
 
 
 # Start main section of code
 
-#TODO figure out which of these lines we actaully need if using Ryan's dataset functions? 
-    # Read TFRecord file
-    reader = tf.TFRecordReader()
-    record_s=glob.glob('*.tfrecords')
-    filename_queue = tf.train.string_input_producer(record_S)
-    
-    _, serialized_example = reader.read(filename_queue)
-    # Define features
-    read_features = {
-            'scan': tf.FixedLenFeature([], dtype=tf.float32), #TODO : is this the right type?
-            'behavioral': tf.FizedLenFeature(dtype=tf.float),
-            'label': tf.FixedLenFeature(dtype=tf.float32)
-            }
-    
-    # Extract features from serialized data
-    read_data = tf.parse_single_example(serialized=serialized_example,features=read_features)
-    label=features['label']
-    scan=features['scan']
-    behav=features['behavioral']
-    # Many tf.train functions use tf.train.QueueRunner,
-    # so we need to start it before we read
-        tf.train.start_queue_runners(sess)
-        
-    # apply encoder to 'scan', append results to 'behavioral', remove NIH flanker, card sort, picseq, list sort, 
-        # pattern from behavioral data if there
-    for name, tensor in read_data.items()
         #TODO open most recent saved autoencoder
         
         #TODO remove the decoder portion
