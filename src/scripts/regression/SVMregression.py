@@ -23,7 +23,7 @@ from data.dataset import get_records, load_shape, _decode
 from model.train import _get_dataset, _only_cropped_scan
 
 #TODOS
-# Kernel Functions if wanted, 
+# Kernel Functions if wanted
 
 
 def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, LR=1e-3, eps=5e-1, thresh=.005, partial=False):
@@ -84,7 +84,7 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, LR=1
         # TODO apply model to each scan, extract 4096x1 feature vector
         featurespart1=apply_encoder(train_set)
         
-        # TODO concatenate model feature vector and behavioral feature vector
+        # TODO concatenate model feature vector and behavioral feature vector, remove features[6:19] (redundant to fluid intelligence)
         
         train_loss = []
         test_loss = []
