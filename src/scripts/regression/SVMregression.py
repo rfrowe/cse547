@@ -24,10 +24,9 @@ from model.train import _get_dataset, _only_cropped_scan
 
 #TODOS
 # Kernel Functions if wanted, 
-# when to stop SVM
 
 
-def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, LR=1e-3, eps=5e-1, partial=False):
+def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, LR=1e-3, eps=5e-1, thresh=.005, partial=False):
     """ varbatch_svm creates an svm regression model with variable batch size. It takes as inputs the dataset, the 
     batch size, the learning rate, and the threshold for acceptable error
     """
@@ -89,9 +88,10 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, LR=1
         
         train_loss = []
         test_loss = []
+        losscrit=thresh+1
         
         #run the function
-        for i in range(200):
+        while losscrit> thresh:
             rand_index = np.random.choice(len(x_vals_train), size=batch_size)
             X = np.transpose([x_vals_train[rand_index]])
             Y = np.transpose([y_vals_train[rand_index]])
@@ -100,6 +100,7 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, LR=1
             train_loss.append(temp_train_loss)
             temp_test_loss = sess.run(loss, feed_dict={x_data:np.transpose([x_vals_test]), y_target: np.transpose([y_vals_test])})
             test_loss.append(temp_test_loss)
+            losscrit=(test_loss[-1]-test_loss[-2])/test_loss[-2]
         
         
 def apply_encoder(dataset, encoder): #TODO write function to apply encoder 
@@ -128,8 +129,12 @@ def get_dataset_regress(dataset_path: str, batch_size: int, buffer_size: int, sh
             .prefetch(buffer_size))
 
 
+def main():
+    args = _cmd.parse_args_for_callable(varbatch_svm)
+    varsArgs = vars(args)
+    verbosity = varsArgs.pop('verbosity', _util.DEFAULT_VERBOSITY)
 
-            
+    varbatch_svm(**varsArgs)            
 
 
 
