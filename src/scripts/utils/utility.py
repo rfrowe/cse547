@@ -62,6 +62,10 @@ def get_rel_weights_path(*relPath):
     return get_rel_data_path("weights", *relPath)
 
 
+def get_rel_log_path(*relPath):
+    return get_rel_data_path("logs", *relPath)
+
+
 def get_rel_datasets_path(*relPath):
     return get_rel_data_path("datasets", *relPath)
 
@@ -121,9 +125,12 @@ def ensure_file(path: str):
     assert os.path.isfile(path), "Is not a file: {}".format(path)
 
 
-def ensure_path_free(path: str):
+def ensure_path_free(path: str, empty_ok=False):
     assert isinstance(path, str)
-    assert not os.path.exists(path), "Path already exists: {}".format(path)
+    if empty_ok:
+        assert not os.path.exists(path) or not os.listdir(path), "Path already exists and is not empty: {}".format(path)
+    else:
+        assert not os.path.exists(path), "Path already exists: {}".format(path)
 
 
 def rm(path: str):

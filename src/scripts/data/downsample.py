@@ -68,7 +68,8 @@ def show_scan(img, title):
     plt.figure()
     plt.title(title)
     plt.imshow(img[img.shape[0] // 2, :, :], cmap='Greys')
-    plt.show()
+    # plt.show()
+    plt.savefig(_util.get_rel_data_path("imgs", "title.png"))
 
 
 def crop_image(img, tol=0.):

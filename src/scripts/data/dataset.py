@@ -192,6 +192,8 @@ def get_records(dataset_path: str, partial: bool):
 
 
 def load_shape(dataset_path: str) -> List[int]:
+    if dataset_path.endswith("train") or dataset_path.endswith("dev") or dataset_path.endswith("test"):
+        dataset_path = os.path.join(dataset_path, os.pardir)
     with open(os.path.join(dataset_path, "shape.json"), "r") as f:
         shape = json.load(f)
     assert isinstance(shape, list) and all(isinstance(s, int) and s > 0 for s in shape) and len(shape) == 3, \

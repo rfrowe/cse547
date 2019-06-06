@@ -47,20 +47,21 @@ class Encoder(_layers.Layer):
     def __init__(self, l2_reg):
         super().__init__()
 
-        self._conv1 = _layers.Conv3D(32, 5, strides=2, padding="same", activation=tf.nn.leaky_relu, name="conv1", kernel_regularizer=_l2(l2_reg))
-        self._conv2 = _layers.Conv3D(256, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv2", kernel_regularizer=_l2(l2_reg))
-        self._conv3 = _layers.Conv3D(1024, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv3", kernel_regularizer=_l2(l2_reg))
-        self._conv4 = _layers.Conv3D(4096, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv4", kernel_regularizer=_l2(l2_reg))
+        self._conv1 = _layers.Conv3D(64, 5, strides=2, padding="same", activation=tf.nn.leaky_relu, name="conv1", kernel_regularizer=_l2(l2_reg))
+        self._conv2 = _layers.Conv3D(128, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv2", kernel_regularizer=_l2(l2_reg))
+        self._conv3 = _layers.Conv3D(256, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv3", kernel_regularizer=_l2(l2_reg))
+        self._conv4 = _layers.Conv3D(512, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv4", kernel_regularizer=_l2(l2_reg))
+        # self._conv4 = _layers.Conv3D(4096, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv4", kernel_regularizer=_l2(l2_reg))
 
     def call(self, tensor, **kwargs):
         # Add channel dimension since these are monochrome.
         tensor = tf.expand_dims(tensor, -1)
 
-        output = self._conv1(tensor)
-        output = self._conv2(output)
-        output = self._conv3(output)
-        output = self._conv4(output)
-        return output
+        tensor = self._conv1(tensor)
+        tensor = self._conv2(tensor)
+        tensor = self._conv3(tensor)
+        tensor = self._conv4(tensor)
+        return tensor
 
 
 class Decoder(_layers.Layer):
@@ -68,18 +69,19 @@ class Decoder(_layers.Layer):
         super().__init__()
 
         # self._conv1 = _layers.Conv3DTranspose(4096, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv1", kernel_regularizer=_l2(l2_reg))
-        self._conv2 = _layers.Conv3DTranspose(1024, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv2", kernel_regularizer=_l2(l2_reg))
-        self._conv3 = _layers.Conv3DTranspose(256, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv3", kernel_regularizer=_l2(l2_reg))
-        self._conv4 = _layers.Conv3DTranspose(32, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv4", kernel_regularizer=_l2(l2_reg))
+        # self._conv2 = _layers.Conv3DTranspose(1024, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv2", kernel_regularizer=_l2(l2_reg))
+        self._conv2 = _layers.Conv3DTranspose(256, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv2", kernel_regularizer=_l2(l2_reg))
+        self._conv3 = _layers.Conv3DTranspose(128, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv3", kernel_regularizer=_l2(l2_reg))
+        self._conv4 = _layers.Conv3DTranspose(64, 5, strides=4, padding="same", activation=tf.nn.leaky_relu, name="conv4", kernel_regularizer=_l2(l2_reg))
         self._conv5 = _layers.Conv3DTranspose(1, 5, strides=2, padding="same", activation=tf.nn.leaky_relu, name="conv5", kernel_regularizer=_l2(l2_reg))
 
     def call(self, tensor, **kwargs):
         # output = self._conv1(tensor)
-        output = self._conv2(tensor)
-        output = self._conv3(output)
-        output = self._conv4(output)
-        output = self._conv5(output)
-        return tf.squeeze(output, 4)
+        tensor = self._conv2(tensor)
+        tensor = self._conv3(tensor)
+        tensor = self._conv4(tensor)
+        tensor = self._conv5(tensor)
+        return tf.squeeze(tensor, 4)
 
 
 class Autoencoder(_layers.Layer):
