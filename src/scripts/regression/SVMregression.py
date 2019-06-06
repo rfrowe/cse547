@@ -24,28 +24,10 @@ from model.train import _get_dataset, _only_cropped_scan
 
 #TODOS
 # Kernel Functions if wanted, 
-# formatting & structure for compatibility with network output
-# main and/or supporting functions?
-# find relative path to tfrecords
+# when to stop SVM
 
 
-# from hcp_config, get subjids and behavioral data attributes
-
-# split subjids into train and tes
-
-# for id in subjids:
-#import tfrecord and apply encoder
-
-#output of encoder is 4096x1
-
-#import behavioral data for specific sample from csv, append output of encoder
-
-#update svm
-
-
-
-
-def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, lr=1e-3, eps=5e-1, partial=False):
+def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, LR=1e-3, eps=5e-1, partial=False):
     """ varbatch_svm creates an svm regression model with variable batch size. It takes as inputs the dataset, the 
     batch size, the learning rate, and the threshold for acceptable error
     """
@@ -66,7 +48,7 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, lr=1
     
     #subset data into train and test sets, randomly shuffle?
         # for now, hardcoade number of files for train/test split:
-    testset=np.random.choice(1096,110)
+    testset=np.random.choice(1096,110) #this is a 10% validation split
     test_set = get_dataset_regress(dataset, test_size, buffer_size, partial, testset)
     trainset=np.random.permute(np.delete(np.arange(1:1096), test_set))
     train_set = get_dataset_regress(dataset, batch_size, buffer_size, partial, trainset)
@@ -100,7 +82,10 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, lr=1
         bestmodel=get_model() #TODO write function to get best model file path
         saver.restore(sess, bestmodel)
         
-        # apply model to each 
+        # TODO apply model to each scan, extract 4096x1 feature vector
+        featurespart1=apply_encoder(train_set)
+        
+        # TODO concatenate model feature vector and behavioral feature vector
         
         train_loss = []
         test_loss = []
@@ -117,12 +102,10 @@ def varbatch_svm(dataset: str, batch_size=32, test_size=110; buffer_size=8, lr=1
             test_loss.append(temp_test_loss)
         
         
-def apply_encoder(dataset, encoder):
+def apply_encoder(dataset, encoder): #TODO write function to apply encoder 
     """
     applies autoencoder to subject scans and assignes feature vectors to test and train sets
     """
-    # TODO extract encoder only
-    # TODO apply encoder only
     featvect=encoder('tfrecordloc\subjid') # how to apply encoder?
     return featvect
 
@@ -146,16 +129,6 @@ def get_dataset_regress(dataset_path: str, batch_size: int, buffer_size: int, sh
 
 
 
-# Start main section of code
-
-        #TODO open most recent saved autoencoder
-        
-        #TODO remove the decoder portion
-        
-        #TODO apply to each record
-        
-        
-        #TODO concatenate resulting 4096 feature vector with behavioral features
             
 
 
