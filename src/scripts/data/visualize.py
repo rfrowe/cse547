@@ -26,7 +26,7 @@ def visualize(dataset: str):
     dataset_path = _util.get_rel_datasets_path(dataset)
     _util.ensure_dir(dataset_path)
 
-    data = _dataset.get_dataset(dataset_path, 1, 1, partial=True)
+    data = _dataset.get_dataset(dataset_path, partial=True)
 
     scan = data.make_one_shot_iterator().next()[0][0].numpy()
     show_scan(scan.squeeze(), "")

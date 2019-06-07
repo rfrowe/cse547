@@ -35,9 +35,9 @@ def downsample(dataset: str, shape: List[int], partial=False):
     dataset_path = _util.get_rel_datasets_path(dataset)
     _util.ensure_dir(dataset_path)
 
-    data = _dataset.get_dataset(dataset_path, 1, 8, partial=partial)
+    data = _dataset.get_dataset(dataset_path, partial=partial)
 
-    resized_dataset = "{}_resized".format(dataset)
+    resized_dataset = "{}_cropped".format(dataset)
     resized_path = _util.get_rel_datasets_path(resized_dataset)
     _util.ensure_path_free(resized_path)
     _util.mkdir(resized_path)

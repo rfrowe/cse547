@@ -3,10 +3,11 @@
 """
 Uility functions in logging and IO.
 """
-
+import glob
 import os
 import shutil
 import logging
+from typing import Any
 
 DEFAULT_VERBOSITY = 4
 
@@ -43,7 +44,7 @@ def _get_path_from_env(envVar):
 
 
 # REVIEW josephz: This should be configurable without having to touch code.
-def getWsDir(envName="WS_PATH"):
+def get_ws_dir(envName="WS_PATH"):
     global _ws_dir
     if _ws_dir is None:
         _ws_dir = _get_path_from_env(envName)
@@ -51,7 +52,7 @@ def getWsDir(envName="WS_PATH"):
 
 
 def get_rel_data_path(*relPath):
-    return os.path.join(getWsDir(), "data", *relPath)
+    return os.path.join(get_ws_dir(), "data", *relPath)
 
 
 def get_rel_raw_path(*relPath):
@@ -128,7 +129,8 @@ def ensure_file(path: str):
 def ensure_path_free(path: str, empty_ok=False):
     assert isinstance(path, str)
     if empty_ok:
-        assert not os.path.exists(path) or not os.listdir(path), "Path already exists and is not empty: {}".format(path)
+        assert not os.path.exists(path) or (os.path.isdir(path) and not os.listdir(path)), \
+            "Path already exists and is not empty: {}".format(path)
     else:
         assert not os.path.exists(path), "Path already exists: {}".format(path)
 
@@ -153,3 +155,31 @@ str_to_bool.dict = {
     "false": False,
     "-": False
 }
+
+
+def get_weights_path_by_param(overwrite=False, **params: Any) -> str:
+    """
+    Get the weights directory for a model given it's parameters.
+
+    :param overwrite: If true and an existing weights directory is found, it will be emptied and used otherwise a new
+        directory is created.
+    :param params: Model parameters to use in generating unique nested model path.
+    :return: Directory in which to place model weights.
+    """
+    # Most importantly, we NEED to know which dataset these weights are for. We'll have this be the top-most
+    # param in our nested directory structure.
+    assert isinstance(params.get("dataset", None), str), "Dataset parameter is required to determine weights path"
+
+    # It is required that parameters are sorted in alphabetical order. Otherwise, two sets of identical parameters could
+    # produce two different weights paths. This also ensures all strings are lowered for consistency.
+    keys = sorted(k for k in params.keys() if k != "dataset")
+    values = (params[key] if not isinstance(params[key], str) else params[key].lower() for key in keys)
+    dirs = ("{}={}".format(key.lower(), value) for key, value in zip(keys, values))
+
+    # Build path and ensure exists.
+    path = get_rel_weights_path(params["dataset"].lower(), *dirs)
+    assert not os.path.exists(path) or overwrite, "Path '{}' already exists".format(path)
+    assert not os.path.isfile(path), "Path '{}' is a file?".format(path)
+    mkdir(path)
+
+    return path

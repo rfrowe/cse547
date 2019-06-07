@@ -11,15 +11,15 @@ import os
 
 import tensorflow as tf
 import SimpleITK as sitk
+import numpy as np
 from tqdm import tqdm
 from typing import List
 
-import utils.utility as _util
 import utils.cmd_line as _cmd
 
 
 from data.hcp_config import FEATURES, LABEL, SUBJECTS, SHAPE
-
+from utils import utility as _util
 
 _logger = _util.get_logger(__file__)
 
@@ -208,20 +208,35 @@ def save_shape(dataset_path: str, shape: List[int]):
         json.dump(shape, f)
 
 
-def get_dataset(dataset_path: str, batch_size: int, buffer_size: int, shuffle=False, partial=False):
-    assert isinstance(batch_size, int) and batch_size > 0
-    assert isinstance(buffer_size, int) and buffer_size > 0
-    assert isinstance(shuffle, bool)
+def load_mean(dataset_path: str):
+    return np.load(os.path.join(dataset_path, "mean.pickle"), allow_pickle=True)
 
+
+def save_mean(dataset_path: str, mean: np.ndarray):
+    mean.dump(os.path.join(dataset_path, "mean.pickle"))
+
+
+def load_std(dataset_path: str):
+    return np.load(os.path.join(dataset_path, "std.pickle"), allow_pickle=True)
+
+
+def save_std(dataset_path: str, mean: np.ndarray):
+    mean.dump(os.path.join(dataset_path, "std.pickle"))
+
+
+def get_dataset(dataset_path: str, partial=False):
     records = get_records(dataset_path, partial)
 
     shape = load_shape(dataset_path)
 
-    # TODO (rfrowe): add shuffling
-    return (tf.data.TFRecordDataset(records)
-            .map(functools.partial(_decode, shape))
-            .batch(batch_size)
-            .prefetch(buffer_size))
+    return tf.data.TFRecordDataset(records).map(functools.partial(_decode, shape))
+
+
+def get_dataset_by_name(name, partial):
+    dataset_path = _util.get_rel_datasets_path(name)
+    _util.ensure_dir(dataset_path)
+
+    return get_dataset(dataset_path, partial=partial)
 
 
 def main():
@@ -235,4 +250,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

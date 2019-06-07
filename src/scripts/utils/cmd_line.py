@@ -135,7 +135,7 @@ def parse_args_for_callable(fn):
             add_boolean_argument(parser, arg_name, help=helpstr, default=False if default is None else default)
         elif type_ in (tuple, list, GeneratorType):
             parser.add_argument("--" + arg_name, default=default, type=type_, nargs="+", help=helpstr)
-        elif hasattr(type_, "__origin__") and (type_.__origin__ == list or type_.__origin__ == tuple or type_.__origin__ == List or type_.__origin__ == Tuple):
+        elif hasattr(type_, "__origin__") and (type_.__origin__ == List or type_.__origin__ == Tuple or type_.__origin__ == list or type_.__origin__ == tuple):
             type_ = type_.__args__[0]
             parser.add_argument("--" + arg_name, default=default, type=type_, nargs="+", help=helpstr)
         elif (hasattr(type_, "__origin__") and type_.__origin__ != List and type_.__origin__ != Tuple and
