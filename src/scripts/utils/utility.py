@@ -3,7 +3,6 @@
 """
 Uility functions in logging and IO.
 """
-import glob
 import os
 import shutil
 import logging

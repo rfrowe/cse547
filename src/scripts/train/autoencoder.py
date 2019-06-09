@@ -1,4 +1,8 @@
-#/usr/bin/env python3
+#!/usr/bin/env python3
+
+"""
+Train a 3D convolutional autoencoder over the provided dataset.
+"""
 import os
 from collections import defaultdict
 
@@ -10,11 +14,11 @@ from tqdm import tqdm
 
 import utils.cmd_line as _cmd
 import utils.utility as _util
-from data.hcp_config import SUBJECTS
 
 from model.autoencoder import Autoencoder
 import data.dataset as _dataset
 from model.tv_loss import total_variation_5d
+from train.train_utils import dataset_iter_len
 
 _logger = _util.get_logger(__file__)
 
@@ -32,7 +36,6 @@ def train(dataset: str, epochs: int, batch_size: int, buffer_size: int, lr: floa
     :param tv_reg: Total Variation regularization coefficient for data.
     :param ssim_loss: SSIM regularization coefficient for data.
     :param sobel_loss: L2 regularization coefficient for data Sobel difference.
-    :return:
     """
     assert isinstance(dataset, str) and len(dataset)
     assert isinstance(epochs, int) and epochs > 0
@@ -101,9 +104,9 @@ def train(dataset: str, epochs: int, batch_size: int, buffer_size: int, lr: floa
         sess.run(tf.global_variables_initializer())
 
         _logger.info("Counting datasets...")
-        train_batches = _iter_len(sess, train_dataset.make_one_shot_iterator().get_next())
+        train_batches = dataset_iter_len(sess, train_dataset.make_one_shot_iterator().get_next())
         _logger.info("\tTrain samples: {}".format(train_batches))
-        dev_batches = _iter_len(sess, dev_dataset.make_one_shot_iterator().get_next())
+        dev_batches = dataset_iter_len(sess, dev_dataset.make_one_shot_iterator().get_next())
         _logger.info("\tDev samples: {}".format(dev_batches))
 
         train_loss = total_loss / train_batches
@@ -259,17 +262,6 @@ def _get_losses(inp, out, batch_size, reg_losses, l2_reg, tv_reg, ssim_loss, sob
     else:
         sobel_loss = tf.Variable(initial_value=0, trainable=False)
     return total_loss, l2_loss, l2_reg, tv_reg, ssim_loss, sobel_loss
-
-
-def _iter_len(sess, data):
-    count = 0
-    for _ in tqdm(SUBJECTS):
-        try:
-            sess.run(data)
-            count += 1
-        except tf.errors.OutOfRangeError:
-            return count
-    return count
 
 
 def _get_dev_loss(sess, inp, data, num_batches, *losses):
