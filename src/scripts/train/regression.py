@@ -2,6 +2,7 @@
 """
 Regression model using autoencoder to predict fluid intelligence.
 """
+
 import operator
 import os
 from functools import reduce
@@ -12,6 +13,7 @@ import tensorflow as tf
 
 import data.dataset as _dataset
 import model.svr as _svr
+import model.reco as _reco
 import utils.cmd_line as _cmd
 import utils.utility as _util
 from model.autoencoder import Encoder
@@ -67,6 +69,8 @@ def _get_model(model: str) -> callable:
     model = model.lower()
     if model == "svr":
         return _svr.svr
+    elif model == "reco":
+        return _reco.reco
     else:
         # TODO: add more regression models.
         raise NotImplementedError("Model '{}' not implemented".format(model))
