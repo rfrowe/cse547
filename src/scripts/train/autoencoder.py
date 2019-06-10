@@ -18,7 +18,7 @@ import utils.utility as _util
 from model.autoencoder import Autoencoder
 import data.dataset as _dataset
 from model.tv_loss import total_variation_5d
-from train.train_utils import dataset_iter_len
+from train.train_test_utils import dataset_iter_len
 
 _logger = _util.get_logger(__file__)
 
@@ -49,6 +49,7 @@ def train(dataset: str, epochs: int, batch_size: int, buffer_size: int, lr: floa
 
     # Load and ensure required paths.
     weights_path = _util.get_weights_path_by_param(
+        model="autoencoder",
         dataset=dataset,
         epochs=epochs,
         batch_size=batch_size,
@@ -235,11 +236,10 @@ def _get_train_op(loss, lr):
 
 def _get_losses(inp, out, batch_size, reg_losses, l2_reg, tv_reg, ssim_loss, sobel_loss):
     l2_loss = tf.nn.l2_loss(inp - out) / batch_size
-    # l2_loss = tf.reduce_mean(tf.squared_difference(inp, out))
     total_loss = l2_loss
 
     if l2_reg > 0:
-        l2_reg = l2_reg * tf.add_n(reg_losses)
+        l2_reg = tf.add_n(reg_losses)
         total_loss += l2_reg
     else:
         l2_reg = tf.Variable(initial_value=0, trainable=False)

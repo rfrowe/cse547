@@ -14,7 +14,8 @@ import model.reco as _reco
 import utils.cmd_line as _cmd
 import utils.utility as _util
 
-import train.train_utils as _train_utils
+import train.train_test_utils as _tt_utils
+import data.hcp_config as _hcp
 
 _logger = _util.get_logger(__file__)
 
@@ -37,6 +38,7 @@ def regression(dataset: str, batch_size: int, encoder_weights: str, lr: float, e
     assert isinstance(epsilon, float) and epsilon > 0
     assert isinstance(model, str) and len(model)
 
+    model_name = model
     model = _get_model(model)
 
     if not os.path.isabs(encoder_weights):
@@ -45,7 +47,8 @@ def regression(dataset: str, batch_size: int, encoder_weights: str, lr: float, e
 
     # Note: these are weights for THIS model.
     weights_path = _util.get_weights_path_by_param(
-        dataset="{}_predict".format(dataset),
+        model=model_name,
+        dataset=dataset,
         encoder=md5(encoder_weights.encode("ascii")).hexdigest(),
         lr=lr,
         batch_size=batch_size,
@@ -58,19 +61,22 @@ def regression(dataset: str, batch_size: int, encoder_weights: str, lr: float, e
     shape = _dataset.load_shape(_util.get_rel_datasets_path(dataset))
 
     label = tf.placeholder(dtype=tf.float32, shape=[None, 1])
+    features = tf.placeholder(dtype=tf.float32, shape=[None, len(_hcp.FEATURES)])
 
     _tboard.configure(log_path, flush_secs=2)
-    with tf.Session() as sess:
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    with tf.Session(config=config) as sess:
         # Define input, output, and intermediate operation.
-        encoder, (inp, code) = _train_utils.load_encoder(sess, encoder_weights, batch_size, shape)
+        encoder, (scan, code) = _tt_utils.load_encoder(sess, encoder_weights, batch_size, shape)
 
         _logger.info("Counting datasets...")
-        train_batches = _train_utils.dataset_iter_len(sess, train_dataset.make_one_shot_iterator().get_next())
+        train_batches = _tt_utils.dataset_iter_len(sess, train_dataset.make_one_shot_iterator().get_next())
         _logger.info("\tTrain samples: {}".format(train_batches))
-        dev_batches = _train_utils.dataset_iter_len(sess, dev_dataset.make_one_shot_iterator().get_next())
+        dev_batches = _tt_utils.dataset_iter_len(sess, dev_dataset.make_one_shot_iterator().get_next())
         _logger.info("\tDev samples: {}".format(dev_batches))
 
-        model(sess, inp, code, label, epsilon, train_dataset, train_batches, dev_dataset, dev_batches, lr, weights_path)
+        model(sess, encoder, scan, code, features, label, epsilon, train_dataset, train_batches, dev_dataset, dev_batches, lr, weights_path)
 
 
 def _get_model(model: str) -> callable:

@@ -12,7 +12,8 @@ import model.svr as _svr
 import utils.cmd_line as _cmd
 import utils.utility as _util
 
-import train.train_utils as _train_utils
+import train.train_test_utils as _tt_utils
+import data.hcp_config as _hcp
 
 _logger = _util.get_logger(__file__)
 
@@ -40,23 +41,24 @@ def predict(dataset: str, encoder_weights: str, model: str, model_weights: str):
         model_weights = _util.get_rel_weights_path(model_weights)
         _util.ensure_dir(os.path.dirname(model_weights))
 
-    test_dataset = _dataset.get_dataset_by_name(os.path.join(dataset, "train"), partial=True).batch(1)
+    test_dataset = _dataset.get_dataset_by_name(os.path.join(dataset, "test"), partial=True).batch(1)
     shape = _dataset.load_shape(_util.get_rel_datasets_path(dataset))
 
     label = tf.placeholder(dtype=tf.float32, shape=[None, 1])
+    features = tf.placeholder(dtype=tf.float32, shape=[None, len(_hcp.FEATURES)])
 
     config = tf.ConfigProto(
         device_count={'GPU': 0}
     )
     with tf.Session(config=config) as sess:
         # Define input, output, and intermediate operation.
-        encoder, (inp, code) = _train_utils.load_encoder(sess, encoder_weights, 1, shape)
+        encoder, (scan, code) = _tt_utils.load_encoder(sess, encoder_weights, 1, shape)
 
         _logger.info("Counting dataset...")
-        test_batches = _train_utils.dataset_iter_len(sess, test_dataset.make_one_shot_iterator().get_next())
+        test_batches = _tt_utils.dataset_iter_len(sess, test_dataset.make_one_shot_iterator().get_next())
         _logger.info("\tTest samples: {}".format(test_batches))
 
-        model(model_weights, sess, inp, code, label, test_dataset, test_batches)
+        model(model_weights, sess, encoder, scan, features, code, label, test_dataset, test_batches)
 
 
 def _get_model(model: str) -> callable:

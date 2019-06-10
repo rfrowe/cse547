@@ -158,7 +158,7 @@ str_to_bool.dict = {
 
 def get_weights_path_by_param(overwrite=False, **params: Any) -> str:
     """
-    Get the weights directory for a model given it's parameters.
+    Get the weights directory for a model given its parameters.
 
     :param overwrite: If true and an existing weights directory is found, it will be emptied and used otherwise a new
         directory is created.
@@ -168,15 +168,16 @@ def get_weights_path_by_param(overwrite=False, **params: Any) -> str:
     # Most importantly, we NEED to know which dataset these weights are for. We'll have this be the top-most
     # param in our nested directory structure.
     assert isinstance(params.get("dataset", None), str), "Dataset parameter is required to determine weights path"
+    assert isinstance(params.get("model", None), str), "Model parameter is required to determine weights path"
 
     # It is required that parameters are sorted in alphabetical order. Otherwise, two sets of identical parameters could
     # produce two different weights paths. This also ensures all strings are lowered for consistency.
-    keys = sorted(k for k in params.keys() if k != "dataset")
+    keys = sorted(k for k in params.keys() if k != "dataset" and k != "model")
     values = (params[key] if not isinstance(params[key], str) else params[key].lower() for key in keys)
     dirs = ("{}={}".format(key.lower(), value) for key, value in zip(keys, values))
 
     # Build path and ensure exists.
-    path = get_rel_weights_path(params["dataset"].lower(), *dirs)
+    path = get_rel_weights_path(params["model"].lower(), params["dataset"].lower(), *dirs)
     assert not os.path.exists(path) or overwrite, "Path '{}' already exists".format(path)
     assert not os.path.isfile(path), "Path '{}' is a file?".format(path)
     mkdir(path)

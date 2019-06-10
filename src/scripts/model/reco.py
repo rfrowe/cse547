@@ -4,10 +4,9 @@ import numpy as np
 import tensorboard_logger as _tboard
 import tensorflow as tf
 from tensorflow.contrib.factorization import WALSModel
-from tqdm import tqdm
 
 import utils.utility as _util
-import train.train_utils as _train_utils
+import train.train_test_utils as _train_utils
 
 _logger = _util.get_logger(__file__)
 

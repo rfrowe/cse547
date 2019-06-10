@@ -1,42 +1,9 @@
 """
-Defines 2-d autoencoder in TensorFlow.
+Defines 3D convolutional autoencoder in TensorFlow.
 """
-import pywt
-
 from tensorflow.contrib.keras import layers as _layers
 from tensorflow.contrib.keras import regularizers as _regs
 import tensorflow as tf
-import numpy as np
-
-
-def _dwt_kernel_init(kind="bior2.2"):
-    wavelet = pywt.Wavelet(kind)
-    dec_hi = np.array(wavelet.dec_hi[::-1])
-    dec_lo = np.array(wavelet.dec_lo[::-1])
-
-    filters = np.array([
-        dec_lo[None, :] * dec_lo[:, None],
-        dec_lo[None, :] * dec_hi[:, None],
-        dec_hi[None, :] * dec_lo[:, None],
-        dec_hi[None, :] * dec_hi[:, None]
-    ])
-
-    return filters
-
-
-def _idwt_kernel_init(kind="bior2.2"):
-    wavelet = pywt.Wavelet(kind)
-    dec_hi = np.array(wavelet.dec_hi)
-    dec_lo = np.array(wavelet.dec_lo)
-
-    filters = np.array([
-        dec_lo[None, :] * dec_lo[:, None],
-        dec_lo[None, :] * dec_hi[:, None],
-        dec_hi[None, :] * dec_lo[:, None],
-        dec_hi[None, :] * dec_hi[:, None]
-    ])
-
-    return filters
 
 
 class Encoder(_layers.Layer):
@@ -78,9 +45,10 @@ class Encoder(_layers.Layer):
 
 
 class Decoder(_layers.Layer):
-    def __init__(self, l2_reg):
+    def __init__(self):
         super().__init__()
 
+        # TODO (rfrowe): is there a meaningful motivation to regularize decoder weights?
         # reg = _regs.l2(l2_reg)
         initializer = tf.contrib.layers.xavier_initializer()
         self._conv1 = _layers.Conv3DTranspose(512, 3, strides=2, padding="same", name="conv1",
@@ -116,7 +84,7 @@ class Autoencoder(_layers.Layer):
     def __init__(self, l2_reg):
         super().__init__()
         self._encoder = Encoder(l2_reg)
-        self._decoder = Decoder(l2_reg)
+        self._decoder = Decoder()
 
     def call(self, tensor, **kwargs):
         latent = self._encoder(tensor)
